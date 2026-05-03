@@ -1,0 +1,4 @@
+pyrotgfork
+tgcrypto
+aiohttp
+beautifulsoup4
