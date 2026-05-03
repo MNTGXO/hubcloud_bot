@@ -52,7 +52,7 @@ async def worker(client: Client, user_id: int, queue: asyncio.Queue):
             # Small delay between requests to avoid hitting rate limits
             await asyncio.sleep(1)
 
-@Client.on_message(filters.private & filters.text & ~filters.command("start"))
+@Client.on_message(filters.group | filters.private & filters.text & filters.incoming)
 async def handle_message(client: Client, message: Message):
     user_id = message.from_user.id
     text = message.text
