@@ -71,15 +71,16 @@ if __name__ == "__main__":
         print("❌ ERROR: Please set BOT_TOKEN, API_ID, API_HASH environment variables.")
         print("   Get them from https://my.telegram.org/apps")
         exit(1)
+
     print("🚀 Bot is starting...")
     start_health_server()
     try:
         app.start()
         logger.info("Pyrogram client started")
 
-        # Ensure long polling works even if webhook was configured previously.
-        app.delete_webhook(drop_pending_updates=False)
-        logger.info("Webhook cleared; bot is now using long polling")
+        # NOTE: Pyrogram uses MTProto, not the Bot API — no webhook management needed.
+        # delete_webhook() is a Bot API concept (python-telegram-bot / aiogram) and
+        # does not exist in Pyrogram. Long polling is the default behaviour here.
 
         app.set_bot_commands([
             BotCommand("start", "Start the bot"),
