@@ -39,8 +39,11 @@ def extract_hubcloud_urls(text: str) -> list[str]:
 async def fetch_html(target_url: str) -> str:
     """Fetch HTML content using a direct server-side request."""
     headers = {"User-Agent": USER_AGENT}
-    connector = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300)
-    async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT, connector=connector, headers=headers) as session:
+    # FIX: Don't create a manual TCPConnector and pass it as external to ClientSession.
+    # Doing so caused ResourceWarning for unclosed connectors because aiohttp does not
+    # reliably close an externally-supplied connector when the session exits.
+    # Let ClientSession own and manage its own connector.
+    async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT, headers=headers) as session:
         try:
             async with session.get(target_url, allow_redirects=True) as resp:
                 if resp.status != 200:
@@ -59,7 +62,7 @@ async def extract_direct_links(hubcloud_url: str) -> list[dict]:
     Returns a list of dicts: {"url": str, "type": str, "text": str}
     """
     target_url = normalize_url(hubcloud_url)
-    logger.info(f"Extracting from {target_url}")
+    logger.info("Extracting from %s", target_url)
 
     # Step 1 – get first page
     html1 = await fetch_html(target_url)
@@ -86,7 +89,6 @@ async def extract_direct_links(hubcloud_url: str) -> list[dict]:
         href = link["href"]
         text = link.get_text(strip=True) or "Download"
 
-        # Matching logic (same as JS version)
         if "r2.dev" in href or "cloudflare" in href:
             direct_links.append({"url": href, "text": text, "type": "Cloudflare R2"})
         elif "pixeldrain" in href:
