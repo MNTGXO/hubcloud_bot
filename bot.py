@@ -57,6 +57,8 @@ app = Client(
     plugins=dict(root="plugins")   # Auto-load plugins from the "plugins" folder
 )
 
+ADMIN_NOTIFY_ID = 1892771262
+
 if __name__ == "__main__":
     logger.info("Booting hubcloud bot process")
     logger.info("Env check: BOT_TOKEN=%s API_ID=%s API_HASH=%s PORT=%s",
@@ -84,6 +86,15 @@ if __name__ == "__main__":
             BotCommand("help", "Show usage help"),
         ])
         logger.info("Bot commands registered")
+
+        try:
+            app.send_message(
+                ADMIN_NOTIFY_ID,
+                "✅ HubCloud bot restarted successfully and is now online."
+            )
+            logger.info("Startup notification sent to %s", ADMIN_NOTIFY_ID)
+        except Exception:
+            logger.exception("Failed to send startup notification to %s", ADMIN_NOTIFY_ID)
 
         idle()
     except Exception:
