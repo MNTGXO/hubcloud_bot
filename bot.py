@@ -1,16 +1,25 @@
 import os
+import sys
 import logging
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pyrogram import Client
 
 # --- Configuration ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-API_ID = int(os.environ.get("API_ID", 0))
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE").strip()
+API_ID_RAW = os.environ.get("API_ID", "0").strip()
 API_HASH = os.environ.get("API_HASH", "")
 
+try:
+    API_ID = int(API_ID_RAW)
+except ValueError:
+    API_ID = 0
+
 # Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -47,10 +56,21 @@ app = Client(
 )
 
 if __name__ == "__main__":
+    logger.info("Booting hubcloud bot process")
+    logger.info("Env check: BOT_TOKEN=%s API_ID=%s API_HASH=%s PORT=%s",
+                "set" if BOT_TOKEN and BOT_TOKEN != "YOUR_BOT_TOKEN_HERE" else "missing",
+                API_ID_RAW or "missing",
+                "set" if API_HASH else "missing",
+                os.environ.get("PORT", "8080"))
+
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE" or not API_ID or not API_HASH:
         print("❌ ERROR: Please set BOT_TOKEN, API_ID, API_HASH environment variables.")
         print("   Get them from https://my.telegram.org/apps")
         exit(1)
     print("🚀 Bot is starting...")
     start_health_server()
-    app.run()
+    try:
+        app.run()
+    except Exception:
+        logger.exception("Fatal error while running bot")
+        sys.exit(1)
