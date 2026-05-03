@@ -6,15 +6,8 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
-# CORS proxies (same as HTML version)
-CORS_PROXIES = [
-    "https://api.allorigins.win/get?url=",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://cors-anywhere.herokuapp.com/",
-    "https://proxy.cors.sh/",
-    "https://api.codetabs.com/v1/proxy?quest="
-]
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)
 
 def normalize_url(url: str) -> str:
     """Convert vifix.site/hubcloud/xxx → hubcloud.one/drive/xxx"""
@@ -44,37 +37,21 @@ def extract_hubcloud_urls(text: str) -> list[str]:
     return unique
 
 async def fetch_html(target_url: str) -> str:
-    """Fetch HTML content using direct request + CORS proxy fallback."""
-    async with aiohttp.ClientSession() as session:
-        # 1) Direct
+    """Fetch HTML content using a direct server-side request."""
+    headers = {"User-Agent": USER_AGENT}
+    connector = aiohttp.TCPConnector(limit=20, ttl_dns_cache=300)
+    async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT, connector=connector, headers=headers) as session:
         try:
-            async with session.get(target_url, timeout=15, headers={"User-Agent": USER_AGENT}) as resp:
-                if resp.status == 200:
-                    return await resp.text()
+            async with session.get(target_url, allow_redirects=True) as resp:
+                if resp.status != 200:
+                    raise Exception(f"HTTP {resp.status}")
+                html = await resp.text()
+                if len(html) < 100:
+                    raise Exception("Received empty/short HTML")
+                return html
         except Exception as e:
-            logger.warning(f"Direct request failed: {e}")
-
-        # 2) Proxies
-        for proxy in CORS_PROXIES:
-            try:
-                if "allorigins.win" in proxy:
-                    proxy_url = f"{proxy}{target_url}"
-                    async with session.get(proxy_url, timeout=15) as resp:
-                        data = await resp.json()
-                        html = data.get("contents", "")
-                        if html and len(html) > 200:
-                            return html
-                else:
-                    proxy_url = f"{proxy}{target_url}"
-                    async with session.get(proxy_url, timeout=15, headers={"User-Agent": USER_AGENT}) as resp:
-                        html = await resp.text()
-                        if html and len(html) > 200:
-                            return html
-            except Exception as e:
-                logger.warning(f"Proxy {proxy} failed: {e}")
-                continue
-
-        raise Exception("All fetch methods failed. HubCloud may be unreachable or link is invalid.")
+            logger.warning("Request failed for %s: %s", target_url, e)
+            raise Exception("Unable to fetch HubCloud page. Link may be invalid or temporarily unavailable.")
 
 async def extract_direct_links(hubcloud_url: str) -> list[dict]:
     """
