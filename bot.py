@@ -4,6 +4,8 @@ import logging
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pyrogram import Client
+from pyrogram.types import BotCommand
+from pyrogram.idle import idle
 
 # --- Configuration ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE").strip()
@@ -70,7 +72,25 @@ if __name__ == "__main__":
     print("🚀 Bot is starting...")
     start_health_server()
     try:
-        app.run()
+        app.start()
+        logger.info("Pyrogram client started")
+
+        # Ensure long polling works even if webhook was configured previously.
+        app.delete_webhook(drop_pending_updates=False)
+        logger.info("Webhook cleared; bot is now using long polling")
+
+        app.set_bot_commands([
+            BotCommand("start", "Start the bot"),
+            BotCommand("help", "Show usage help"),
+        ])
+        logger.info("Bot commands registered")
+
+        idle()
     except Exception:
         logger.exception("Fatal error while running bot")
         sys.exit(1)
+    finally:
+        try:
+            app.stop()
+        except Exception:
+            logger.exception("Error during bot shutdown")
