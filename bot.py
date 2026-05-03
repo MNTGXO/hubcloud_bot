@@ -5,7 +5,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pyrogram import Client
 from pyrogram.types import BotCommand
-from pyrogram.idle import idle
+from pyrogram import idle
 
 # --- Configuration ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE").strip()
